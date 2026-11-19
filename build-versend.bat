@@ -201,10 +201,58 @@ exit /b %WIN_ERR%
 echo.
 echo [3/3] Packaging Android .apk via Capacitor + Gradle...
 
+:: Auto-detect Java JDK in PATH, JAVA_HOME, Android Studio JBR, and common install folders
+where java >nul 2>nul
+if errorlevel 1 (
+    if not "%JAVA_HOME%"=="" if exist "%JAVA_HOME%\bin\java.exe" (
+        set "PATH=%JAVA_HOME%\bin;%PATH%"
+    )
+)
+
+where java >nul 2>nul
+if errorlevel 1 (
+    if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+        set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+        set "PATH=!JAVA_HOME!\bin;!PATH!"
+    ) else if exist "C:\Program Files\Android\Android Studio\jre\bin\java.exe" (
+        set "JAVA_HOME=C:\Program Files\Android\Android Studio\jre"
+        set "PATH=!JAVA_HOME!\bin;!PATH!"
+    )
+)
+
+where java >nul 2>nul
+if errorlevel 1 (
+    for /d %%D in ("C:\Program Files\Eclipse Adoptium\jdk-*" "C:\Program Files\Microsoft\jdk-*" "C:\Program Files\Java\jdk-*" "C:\Program Files\Zulu\zulu-*") do (
+        if exist "%%~fD\bin\java.exe" (
+            set "JAVA_HOME=%%~fD"
+            set "PATH=%%~fD\bin;!PATH!"
+        )
+    )
+)
+
+where java >nul 2>nul
+if errorlevel 1 (
+    echo [WARN] Java JDK 17+ was not found on this PC.
+    where winget >nul 2>nul
+    if not errorlevel 1 (
+        set /p "INSTALL_JDK=Install Microsoft OpenJDK 17 automatically via winget? (Y/N): "
+        if /i "!INSTALL_JDK!"=="Y" (
+            winget install --id Microsoft.OpenJDK.17 --accept-source-agreements --accept-package-agreements
+            for /d %%D in ("C:\Program Files\Microsoft\jdk-*") do (
+                if exist "%%~fD\bin\java.exe" (
+                    set "JAVA_HOME=%%~fD"
+                    set "PATH=%%~fD\bin;!PATH!"
+                )
+            )
+        )
+    )
+)
+
 where java >nul 2>nul
 if errorlevel 1 (
     echo [ERROR] Java JDK 17+ is required for Android builds.
-    echo Install Android Studio or JDK 17 and ensure "java" is in PATH.
+    echo Install Android Studio ^(https://developer.android.com/studio^) or run:
+    echo   winget install Microsoft.OpenJDK.17
     exit /b 1
 )
 
@@ -213,11 +261,14 @@ if "%ANDROID_HOME%"=="" (
         set "ANDROID_HOME=%ANDROID_SDK_ROOT%"
     ) else if exist "%LOCALAPPDATA%\Android\Sdk" (
         set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+    ) else if exist "C:\Android\Sdk" (
+        set "ANDROID_HOME=C:\Android\Sdk"
     )
 )
 
 if "%ANDROID_HOME%"=="" (
-    echo [ERROR] Android SDK not found. Install Android Studio SDK or set ANDROID_HOME.
+    echo [ERROR] Android SDK not found at %LOCALAPPDATA%\Android\Sdk.
+    echo Install Android Studio ^(https://developer.android.com/studio^) and open it once to install the Android SDK.
     exit /b 1
 )
 set "ANDROID_SDK_ROOT=%ANDROID_HOME%"
@@ -237,11 +288,11 @@ if not exist "packaging\android\package.json" (
     echo   "version": "1.0.0",
     echo   "private": true,
     echo   "dependencies": {
-    echo     "@capacitor/core": "^7.0.0",
-    echo     "@capacitor/android": "^7.0.0"
+    echo     "@capacitor/core": "^6.2.0",
+    echo     "@capacitor/android": "^6.2.0"
     echo   },
     echo   "devDependencies": {
-    echo     "@capacitor/cli": "^7.0.0"
+    echo     "@capacitor/cli": "^6.2.0"
     echo   }
     echo }
     ) > "packaging\android\package.json"
