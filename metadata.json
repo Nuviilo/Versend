@@ -1,0 +1,10 @@
+{
+  "name": "Versend",
+  "description": "Fast, minimal cross-platform peer-to-peer file transfer between Windows and Android.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
