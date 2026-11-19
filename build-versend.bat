@@ -55,8 +55,8 @@ if "!SERVER_URL!"=="" set "SERVER_URL=%DEFAULT_URL%"
 :: Install root dependencies if needed and build frontend bundle
 echo.
 echo [1/3] Installing dependencies and building Versend frontend...
-if not exist "node_modules" (
-    call npm install
+if not exist "node_modules\.bin\vite.cmd" (
+    call npm install --legacy-peer-deps
     if errorlevel 1 goto :fail
 )
 
@@ -184,7 +184,7 @@ xcopy /E /I /Y "dist" "packaging\windows\dist" >nul
 pushd "packaging\windows"
 if not exist "node_modules\electron" (
     echo Installing Electron and electron-builder (first run only^)...
-    call npm install
+    call npm install --legacy-peer-deps
     if errorlevel 1 (
         popd
         exit /b 1
@@ -261,7 +261,7 @@ echo }
 pushd "packaging\android"
 if not exist "node_modules\@capacitor\android" (
     echo Installing Capacitor Android dependencies (first run only^)...
-    call npm install
+    call npm install --legacy-peer-deps
     if errorlevel 1 (
         popd
         exit /b 1
@@ -284,11 +284,11 @@ if errorlevel 1 (
 
 :: Copy Versend adaptive & legacy Android launcher icons into res\
 if exist "..\..\assets\icons\android" (
-    xcopy /E /I /Y "..\..\assets\icons\android\*" "android\app\src\main\res\" >nul
+    xcopy /E /I /Y "..\..\assets\icons\android" "android\app\src\main\res" >nul
 )
 
 :: Ensure CAMERA and INTERNET permissions are present in AndroidManifest.xml
-node -e "const fs=require('fs');const p='android/app/src/main/AndroidManifest.xml';let x=fs.readFileSync(p,'utf8');if(!x.includes('android.permission.CAMERA')){x=x.replace('<application','<uses-permission android:name=\"android.permission.CAMERA\" />\n    <application');}if(!x.includes('android.permission.INTERNET')){x=x.replace('<application','<uses-permission android:name=\"android.permission.INTERNET\" />\n    <application');}fs.writeFileSync(p,x);"
+node -e "const fs=require('fs'),q=String.fromCharCode(34),p='android/app/src/main/AndroidManifest.xml';let x=fs.readFileSync(p,'utf8');if(!x.includes('android.permission.CAMERA'))x=x.replace('<application','<uses-permission android:name='+q+'android.permission.CAMERA'+q+' />\n    <application');if(!x.includes('android.permission.INTERNET'))x=x.replace('<application','<uses-permission android:name='+q+'android.permission.INTERNET'+q+' />\n    <application');fs.writeFileSync(p,x);"
 
 pushd "android"
 call gradlew.bat assembleDebug
