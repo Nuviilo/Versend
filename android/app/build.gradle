@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.versend.app'
-    compileSdk 35
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.versend.app"
         minSdk 24
-        targetSdk 35
+        targetSdk 34
         versionCode 1
         versionName "1.0.0"
     }
@@ -37,6 +37,6 @@ tasks.register('syncWebDist', Copy) {
 preBuild.dependsOn('syncWebDist')
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.11.0'
 }
