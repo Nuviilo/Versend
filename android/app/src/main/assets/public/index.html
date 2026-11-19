@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Versend — Cross-Platform File Transfer</title>
+    <meta name="description" content="Fast, minimal cross-platform peer-to-peer file transfer between Windows and Android." />
+    <meta property="og:title" content="Versend — Cross-Platform File Transfer" />
+    <meta property="og:description" content="Fast, minimal cross-platform peer-to-peer file transfer between Windows and Android." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('versend_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-H312YF8i.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BQSOHXpR.css">
+  </head>
+  <body class="bg-[#FAFAFA] text-[#111827] dark:bg-[#111214] dark:text-[#F3F4F6] antialiased selection:bg-blue-600/15 selection:text-blue-700 dark:selection:bg-blue-500/25 dark:selection:text-blue-300">
+    <div id="root"></div>
+  </body>
+</html>

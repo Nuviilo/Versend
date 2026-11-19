@@ -1,10 +1,10 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-title Versend - Automated Windows & Android Builder
+title Versend - Windows .exe Builder
 
 echo ============================================================
-echo   Versend Automated Build Script (Windows .exe + Android .apk)
+echo   Versend Windows .exe Builder
 echo ============================================================
 echo.
 
@@ -24,29 +24,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Determine build target (CLI arg or interactive menu)
-set "TARGET=%~1"
-if "%TARGET%"=="" (
-    echo Choose what to build:
-    echo   [1] Windows installer + portable (.exe^)
-    echo   [2] Android package (.apk^)
-    echo   [3] Both Windows (.exe^) and Android (.apk^)
-    echo.
-    set /p "CHOICE=Enter choice (1, 2, or 3): "
-    if "!CHOICE!"=="1" set "TARGET=win"
-    if "!CHOICE!"=="2" set "TARGET=android"
-    if "!CHOICE!"=="3" set "TARGET=all"
-)
-
-if not "%TARGET%"=="win" if not "%TARGET%"=="android" if not "%TARGET%"=="all" (
-    echo [ERROR] Invalid selection. Use 1, 2, or 3.
-    pause
-    exit /b 1
-)
-
-:: Ask for live signaling server URL (used by standalone .exe / .apk)
+:: Ask for live signaling server URL (used by standalone .exe and synced to android/ assets)
 set "DEFAULT_URL=https://ais-pre-lwrirw3pjjs2vliyzhza53-646622080348.asia-southeast1.run.app"
-echo.
 echo Enter your deployed Versend HTTPS server URL
 echo (Press Enter to use: %DEFAULT_URL%^)
 set /p "SERVER_URL=Server URL: "
@@ -54,7 +33,7 @@ if "!SERVER_URL!"=="" set "SERVER_URL=%DEFAULT_URL%"
 
 :: Install root dependencies if needed and build frontend bundle
 echo.
-echo [1/3] Installing dependencies and building Versend frontend...
+echo [1/2] Installing dependencies and building Versend frontend...
 if not exist "node_modules\.bin\vite.cmd" (
     call npm install --legacy-peer-deps
     if errorlevel 1 goto :fail
@@ -64,36 +43,15 @@ set "VITE_SERVER_URL=!SERVER_URL!"
 call npx vite build --base=./
 if errorlevel 1 goto :fail
 
-if not exist "release" mkdir "release"
-
-if "%TARGET%"=="win" call :build_windows
-if errorlevel 1 goto :fail
-
-if "%TARGET%"=="android" call :build_android
-if errorlevel 1 goto :fail
-
-if "%TARGET%"=="all" (
-    call :build_windows
-    if errorlevel 1 goto :fail
-    call :build_android
-    if errorlevel 1 goto :fail
+:: Also keep Android Studio project's bundled assets synced with this Server URL
+if exist "android\app\src\main" (
+    if exist "android\app\src\main\assets\public" rmdir /s /q "android\app\src\main\assets\public"
+    xcopy /E /I /Y "dist" "android\app\src\main\assets\public" >nul
 )
 
 echo.
-echo ============================================================
-echo   BUILD COMPLETE
-echo   Check the "release" folder for your installers:
-if exist "release\windows" echo     - Windows: release\windows\
-if exist "release\android\Versend.apk" echo     - Android: release\android\Versend.apk
-echo ============================================================
-echo.
-pause
-exit /b 0
-
-:: ------------------------------------------------------------
-:build_windows
-echo.
-echo [2/3] Packaging Windows .exe via Electron...
+echo [2/2] Packaging Windows .exe via Electron...
+if not exist "release" mkdir "release"
 if not exist "packaging\windows" mkdir "packaging\windows"
 
 :: Copy Windows & runtime app icons
@@ -194,171 +152,21 @@ if not exist "node_modules\electron" (
 call npx electron-builder --win --x64
 set "WIN_ERR=%errorlevel%"
 popd
-exit /b %WIN_ERR%
+if not "%WIN_ERR%"=="0" goto :fail
 
-:: ------------------------------------------------------------
-:build_android
 echo.
-echo [3/3] Packaging Android .apk via Capacitor + Gradle...
-
-:: Auto-detect Java JDK in PATH, JAVA_HOME, Android Studio JBR, and common install folders
-where java >nul 2>nul
-if errorlevel 1 (
-    if not "%JAVA_HOME%"=="" if exist "%JAVA_HOME%\bin\java.exe" (
-        set "PATH=%JAVA_HOME%\bin;%PATH%"
-    )
-)
-
-where java >nul 2>nul
-if errorlevel 1 (
-    if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
-        set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
-        set "PATH=!JAVA_HOME!\bin;!PATH!"
-    ) else if exist "C:\Program Files\Android\Android Studio\jre\bin\java.exe" (
-        set "JAVA_HOME=C:\Program Files\Android\Android Studio\jre"
-        set "PATH=!JAVA_HOME!\bin;!PATH!"
-    )
-)
-
-where java >nul 2>nul
-if errorlevel 1 (
-    for /d %%D in ("C:\Program Files\Eclipse Adoptium\jdk-*" "C:\Program Files\Microsoft\jdk-*" "C:\Program Files\Java\jdk-*" "C:\Program Files\Zulu\zulu-*") do (
-        if exist "%%~fD\bin\java.exe" (
-            set "JAVA_HOME=%%~fD"
-            set "PATH=%%~fD\bin;!PATH!"
-        )
-    )
-)
-
-where java >nul 2>nul
-if errorlevel 1 (
-    echo [WARN] Java JDK 17+ was not found on this PC.
-    where winget >nul 2>nul
-    if not errorlevel 1 (
-        set /p "INSTALL_JDK=Install Microsoft OpenJDK 17 automatically via winget? (Y/N): "
-        if /i "!INSTALL_JDK!"=="Y" (
-            winget install --id Microsoft.OpenJDK.17 --accept-source-agreements --accept-package-agreements
-            for /d %%D in ("C:\Program Files\Microsoft\jdk-*") do (
-                if exist "%%~fD\bin\java.exe" (
-                    set "JAVA_HOME=%%~fD"
-                    set "PATH=%%~fD\bin;!PATH!"
-                )
-            )
-        )
-    )
-)
-
-where java >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] Java JDK 17+ is required for Android builds.
-    echo Install Android Studio ^(https://developer.android.com/studio^) or run:
-    echo   winget install Microsoft.OpenJDK.17
-    exit /b 1
-)
-
-if "%ANDROID_HOME%"=="" (
-    if not "%ANDROID_SDK_ROOT%"=="" (
-        set "ANDROID_HOME=%ANDROID_SDK_ROOT%"
-    ) else if exist "%LOCALAPPDATA%\Android\Sdk" (
-        set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
-    ) else if exist "C:\Android\Sdk" (
-        set "ANDROID_HOME=C:\Android\Sdk"
-    )
-)
-
-if "%ANDROID_HOME%"=="" (
-    echo [ERROR] Android SDK not found at %LOCALAPPDATA%\Android\Sdk.
-    echo Install Android Studio ^(https://developer.android.com/studio^) and open it once to install the Android SDK.
-    exit /b 1
-)
-set "ANDROID_SDK_ROOT=%ANDROID_HOME%"
-
-if not exist "packaging\android" mkdir "packaging\android"
-if not exist "packaging\android\www" mkdir "packaging\android\www"
-
-:: Copy latest dist into packaging\android\www
-rmdir /s /q "packaging\android\www"
-xcopy /E /I /Y "dist" "packaging\android\www" >nul
-
-:: Write Capacitor wrapper package.json & config if missing
-if not exist "packaging\android\package.json" (
-    (
-    echo {
-    echo   "name": "versend-android",
-    echo   "version": "1.0.0",
-    echo   "private": true,
-    echo   "dependencies": {
-    echo     "@capacitor/core": "^6.2.0",
-    echo     "@capacitor/android": "^6.2.0"
-    echo   },
-    echo   "devDependencies": {
-    echo     "@capacitor/cli": "^6.2.0"
-    echo   }
-    echo }
-    ) > "packaging\android\package.json"
-)
-
-(
-echo {
-echo   "appId": "com.versend.app",
-echo   "appName": "Versend",
-echo   "webDir": "www",
-echo   "android": {
-echo     "allowMixedContent": false
-echo   }
-echo }
-) > "packaging\android\capacitor.config.json"
-
-pushd "packaging\android"
-if not exist "node_modules\@capacitor\android" (
-    echo Installing Capacitor Android dependencies (first run only^)...
-    call npm install --legacy-peer-deps
-    if errorlevel 1 (
-        popd
-        exit /b 1
-    )
-)
-
-if not exist "android" (
-    call npx cap add android
-    if errorlevel 1 (
-        popd
-        exit /b 1
-    )
-)
-
-call npx cap sync android
-if errorlevel 1 (
-    popd
-    exit /b 1
-)
-
-:: Copy Versend adaptive & legacy Android launcher icons into res\
-if exist "..\..\assets\icons\android" (
-    xcopy /E /I /Y "..\..\assets\icons\android" "android\app\src\main\res" >nul
-)
-
-:: Ensure CAMERA and INTERNET permissions are present in AndroidManifest.xml
-node -e "const fs=require('fs'),q=String.fromCharCode(34),p='android/app/src/main/AndroidManifest.xml';let x=fs.readFileSync(p,'utf8');if(!x.includes('android.permission.CAMERA'))x=x.replace('<application','<uses-permission android:name='+q+'android.permission.CAMERA'+q+' />\n    <application');if(!x.includes('android.permission.INTERNET'))x=x.replace('<application','<uses-permission android:name='+q+'android.permission.INTERNET'+q+' />\n    <application');fs.writeFileSync(p,x);"
-
-pushd "android"
-call gradlew.bat assembleDebug
-set "GRADLE_ERR=%errorlevel%"
-popd
-
-if not "%GRADLE_ERR%"=="0" (
-    popd
-    exit /b %GRADLE_ERR%
-)
-
-if not exist "..\..\release\android" mkdir "..\..\release\android"
-copy /Y "android\app\build\outputs\apk\debug\app-debug.apk" "..\..\release\android\Versend.apk" >nul
-popd
+echo ============================================================
+echo   WINDOWS BUILD COMPLETE
+echo   Output folder: release\windows\
+echo     - Installer: release\windows\Versend Setup 1.0.0.exe
+echo     - Portable:  release\windows\Versend 1.0.0.exe
+echo ============================================================
+echo.
+pause
 exit /b 0
 
-:: ------------------------------------------------------------
 :fail
 echo.
-echo [ERROR] Build failed. Review the error output above.
+echo [ERROR] Windows build failed. Review the error output above.
 pause
 exit /b 1
