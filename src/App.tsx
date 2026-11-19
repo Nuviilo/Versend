@@ -12,6 +12,7 @@ import {
   saveDeviceIdentity,
   savePairedDevices,
 } from './lib/deviceIdentity';
+import { getServerOrigin, setCustomServerUrl } from './lib/serverUrl';
 import { VersendClient } from './lib/versendClient';
 import type {
   ActiveTransfer,
@@ -34,6 +35,7 @@ export default function App() {
   const [identity, setIdentity] = useState<DeviceIdentity>(() => loadDeviceIdentity());
   const [pairedDevices, setPairedDevices] = useState<PairedDevice[]>(() => loadPairedDevices());
   const [wsConnected, setWsConnected] = useState(false);
+  const [serverUrl, setServerUrl] = useState<string>(() => getServerOrigin());
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [transfers, setTransfers] = useState<ActiveTransfer[]>([]);
@@ -159,6 +161,15 @@ export default function App() {
     saveDeviceIdentity(updated);
     clientRef.current?.updateIdentity(updated);
   };
+
+  const handleUpdateServerUrl = useCallback((url: string) => {
+    const updated = setCustomServerUrl(url);
+    setServerUrl(updated || getServerOrigin());
+    setPairCode('');
+    setPairExpiresAt(0);
+    setPairError(null);
+    clientRef.current?.reconnectWithNewServer();
+  }, []);
 
   const handleRequestNewCode = useCallback(() => {
     clientRef.current?.createPairingCode();
@@ -309,7 +320,9 @@ export default function App() {
               identity={identity}
               pairedDevices={pairedDevices}
               wsConnected={wsConnected}
+              serverUrl={serverUrl}
               onRenameDevice={handleRenameDevice}
+              onUpdateServerUrl={handleUpdateServerUrl}
               onOpenAddModal={() => setAddModalOpen(true)}
               onRemoveDevice={handleRemoveDevice}
               onSendToDevice={handleSendToDevice}
@@ -367,6 +380,8 @@ export default function App() {
       {/* Add Device Modal (QR Code + Expiring Connection Code) */}
       <AddDeviceModal
         open={addModalOpen}
+        wsConnected={wsConnected}
+        serverUrl={serverUrl}
         code={pairCode}
         expiresAt={pairExpiresAt}
         error={pairError}
@@ -374,6 +389,7 @@ export default function App() {
         onRequestNewCode={handleRequestNewCode}
         onRedeemCode={handleRedeemCode}
         onClearError={handleClearPairError}
+        onUpdateServerUrl={handleUpdateServerUrl}
       />
 
       {/* Incoming File Offer Modal (Explicit Save / Decline) */}

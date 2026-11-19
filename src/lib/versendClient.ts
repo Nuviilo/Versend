@@ -102,6 +102,7 @@ export class VersendClient {
   private outgoingSessions = new Map<string, OutgoingSession>();
   private incomingSessions = new Map<string, IncomingSession>();
   private pendingOffers = new Map<string, IncomingOffer>();
+  private pendingPairCreate = false;
 
   constructor(
     identity: DeviceIdentity,
@@ -232,8 +233,33 @@ export class VersendClient {
     });
   }
 
+  public reconnectWithNewServer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempt = 0;
+    if (this.ws) {
+      const oldWs = this.ws;
+      this.ws = null;
+      try {
+        oldWs.onclose = null;
+        oldWs.onerror = null;
+        oldWs.onmessage = null;
+        oldWs.onopen = null;
+        oldWs.close();
+      } catch {
+        // ignore
+      }
+    }
+    this.callbacks.onWsConnectedChange(false);
+    void this.fetchIceServers();
+    this.connectWs();
+  }
+
   public createPairingCode(): void {
-    this.sendJson({ type: 'pair:create' });
+    const sent = this.sendJson({ type: 'pair:create' });
+    this.pendingPairCreate = !sent;
   }
 
   public redeemPairingCode(code: string): void {
@@ -589,6 +615,10 @@ export class VersendClient {
             : { ...d, online: false };
         });
         this.callbacks.onPairedDevicesChange([...this.pairedDevices]);
+        if (this.pendingPairCreate) {
+          this.pendingPairCreate = false;
+          this.sendJson({ type: 'pair:create' });
+        }
         break;
       }
 

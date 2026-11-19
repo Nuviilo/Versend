@@ -6,6 +6,8 @@ import { getServerOrigin } from '../lib/serverUrl';
 
 interface AddDeviceModalProps {
   open: boolean;
+  wsConnected: boolean;
+  serverUrl: string;
   code: string;
   expiresAt: number;
   error: string | null;
@@ -13,6 +15,7 @@ interface AddDeviceModalProps {
   onRequestNewCode: () => void;
   onRedeemCode: (code: string) => void;
   onClearError: () => void;
+  onUpdateServerUrl: (url: string) => void;
 }
 
 function extractPairCode(rawText: string): string {
@@ -29,6 +32,8 @@ function extractPairCode(rawText: string): string {
 
 export function AddDeviceModal({
   open,
+  wsConnected,
+  serverUrl,
   code,
   expiresAt,
   error,
@@ -36,6 +41,7 @@ export function AddDeviceModal({
   onRequestNewCode,
   onRedeemCode,
   onClearError,
+  onUpdateServerUrl,
 }: AddDeviceModalProps) {
   const [tab, setTab] = useState<'show' | 'connect'>('show');
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -44,6 +50,8 @@ export function AddDeviceModal({
   const [inputCode, setInputCode] = useState('');
   const [scanning, setScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [editingServer, setEditingServer] = useState(false);
+  const [draftServer, setDraftServer] = useState(serverUrl);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -72,13 +80,15 @@ export function AddDeviceModal({
       stopScanner();
       setInputCode('');
       setCameraError(null);
+      setEditingServer(false);
       onClearError();
       return;
     }
-    if (tab === 'show' && !code) {
+    setDraftServer(serverUrl);
+    if (tab === 'show' && wsConnected && !code) {
       onRequestNewCode();
     }
-  }, [open, tab, code, onRequestNewCode, stopScanner, onClearError]);
+  }, [open, tab, wsConnected, code, serverUrl, onRequestNewCode, stopScanner, onClearError]);
 
   useEffect(() => {
     if (!open || !code) {
@@ -275,11 +285,45 @@ export function AddDeviceModal({
                     className="w-44 h-44 block"
                   />
                 ) : (
-                  <div className="w-44 h-44 flex items-center justify-center text-xs text-neutral-400">
-                    Generating QR…
+                  <div className="w-44 h-44 flex flex-col items-center justify-center px-3 text-center gap-2 text-xs text-neutral-500">
+                    <span>{wsConnected ? 'Generating QR…' : 'Connecting to signaling server…'}</span>
+                    {!wsConnected && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingServer((v) => !v)}
+                        className="text-blue-600 font-medium hover:underline"
+                      >
+                        Change server URL
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
+
+              {!wsConnected && editingServer && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onUpdateServerUrl(draftServer);
+                    setEditingServer(false);
+                  }}
+                  className="w-full flex items-center gap-2"
+                >
+                  <input
+                    type="url"
+                    value={draftServer}
+                    onChange={(e) => setDraftServer(e.target.value)}
+                    placeholder="https://your-versend-server.com"
+                    className="flex-1 min-h-[38px] px-3 py-1.5 text-xs rounded-lg bg-neutral-50 dark:bg-[#111214] border border-neutral-200 dark:border-[#27292E] text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+                  />
+                  <button
+                    type="submit"
+                    className="min-h-[38px] px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium whitespace-nowrap"
+                  >
+                    Connect
+                  </button>
+                </form>
+              )}
 
               <div className="space-y-1.5 w-full">
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">

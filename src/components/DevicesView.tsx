@@ -7,7 +7,9 @@ interface DevicesViewProps {
   identity: DeviceIdentity;
   pairedDevices: PairedDevice[];
   wsConnected: boolean;
+  serverUrl: string;
   onRenameDevice: (newName: string) => void;
+  onUpdateServerUrl: (url: string) => void;
   onOpenAddModal: () => void;
   onRemoveDevice: (deviceId: string) => void;
   onSendToDevice: (deviceId: string) => void;
@@ -17,13 +19,17 @@ export function DevicesView({
   identity,
   pairedDevices,
   wsConnected,
+  serverUrl,
   onRenameDevice,
+  onUpdateServerUrl,
   onOpenAddModal,
   onRemoveDevice,
   onSendToDevice,
 }: DevicesViewProps) {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(identity.name);
+  const [editingServer, setEditingServer] = useState(false);
+  const [draftServer, setDraftServer] = useState(serverUrl);
 
   const commitName = () => {
     const trimmed = draftName.trim();
@@ -102,13 +108,52 @@ export function DevicesView({
                     </button>
                   </div>
                 )}
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-                  {identity.platform}
-                  <span aria-hidden="true"> · </span>
-                  <span className={wsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-500 dark:text-neutral-400'}>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                  <span>{identity.platform}</span>
+                  <span aria-hidden="true">·</span>
+                  <span className={wsConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
                     {wsConnected ? 'Ready for connections' : 'Connecting…'}
                   </span>
+                  {!wsConnected && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftServer(serverUrl);
+                          setEditingServer((v) => !v);
+                        }}
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                      >
+                        Change server
+                      </button>
+                    </>
+                  )}
                 </p>
+                {!wsConnected && editingServer && (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      onUpdateServerUrl(draftServer);
+                      setEditingServer(false);
+                    }}
+                    className="flex flex-wrap items-center gap-2 mt-2"
+                  >
+                    <input
+                      type="url"
+                      value={draftServer}
+                      onChange={(e) => setDraftServer(e.target.value)}
+                      placeholder="https://your-versend-server.com"
+                      className="flex-1 min-w-[200px] min-h-[36px] px-2.5 py-1 text-xs rounded-lg bg-neutral-50 dark:bg-[#111214] border border-neutral-300 dark:border-[#34373E] text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-blue-600/30"
+                    />
+                    <button
+                      type="submit"
+                      className="min-h-[36px] px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium whitespace-nowrap"
+                    >
+                      Save & connect
+                    </button>
+                  </form>
+                )}
               </div>
             </div>
 
