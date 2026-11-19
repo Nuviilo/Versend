@@ -96,6 +96,10 @@ echo.
 echo [2/3] Packaging Windows .exe via Electron...
 if not exist "packaging\windows" mkdir "packaging\windows"
 
+:: Copy Windows & runtime app icons
+if exist "assets\icons\icon.ico" copy /Y "assets\icons\icon.ico" "packaging\windows\icon.ico" >nul
+if exist "assets\icons\icon.png" copy /Y "assets\icons\icon.png" "packaging\windows\icon.png" >nul
+
 :: Write Electron main process
 (
 echo const { app, BrowserWindow, session } = require('electron'^);
@@ -109,6 +113,7 @@ echo     minWidth: 420,
 echo     minHeight: 600,
 echo     autoHideMenuBar: true,
 echo     title: 'Versend',
+echo     icon: path.join(__dirname, 'icon.png'^),
 echo     webPreferences: {
 echo       contextIsolation: true,
 echo       nodeIntegration: false,
@@ -133,7 +138,7 @@ echo   if (process.platform !== 'darwin'^) app.quit(^);
 echo }^);
 ) > "packaging\windows\main.cjs"
 
-:: Write Electron package.json
+:: Write Electron package.json with Windows .ico configuration
 (
 echo {
 echo   "name": "versend-desktop",
@@ -148,13 +153,21 @@ echo       "output": "../../release/windows"
 echo     },
 echo     "files": [
 echo       "main.cjs",
+echo       "icon.ico",
+echo       "icon.png",
 echo       "dist/**/*"
 echo     ],
 echo     "win": {
+echo       "icon": "icon.ico",
 echo       "target": [
 echo         "nsis",
 echo         "portable"
 echo       ]
+echo     },
+echo     "nsis": {
+echo       "installerIcon": "icon.ico",
+echo       "uninstallerIcon": "icon.ico",
+echo       "shortcutName": "Versend"
 echo     }
 echo   },
 echo   "devDependencies": {
@@ -267,6 +280,11 @@ call npx cap sync android
 if errorlevel 1 (
     popd
     exit /b 1
+)
+
+:: Copy Versend adaptive & legacy Android launcher icons into res\
+if exist "..\..\assets\icons\android" (
+    xcopy /E /I /Y "..\..\assets\icons\android\*" "android\app\src\main\res\" >nul
 )
 
 :: Ensure CAMERA and INTERNET permissions are present in AndroidManifest.xml
